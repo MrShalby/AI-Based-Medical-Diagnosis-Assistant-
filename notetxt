@@ -1,0 +1,80 @@
+Create a 15-slide professional PowerPoint presentation for a Capstone Project (7th Semester) based on the following README description:
+Project Title: AI-Based Medical Diagnosis Assistant
+Type: Advanced Capstone Project (React + Flask + AI/ML)
+Objective: Provide an AI-powered healthcare platform for symptom analysis, chatbot interaction, and medical image analysis.
+
+Slide Requirements (15 slides)
+
+Title Slide
+
+Project Title, Group Number, Team Members, Guide, Institute Logo
+
+Introduction
+
+Short intro of the project, motivation, and why medical AI is important
+
+Problem Statement
+
+The gap in current healthcare diagnosis systems (delay, accessibility, cost)
+
+Objectives
+
+Goals of the project (Symptom analysis, Chatbot, Image processing)
+
+System Overview
+
+3 core modules (Symptom Prediction, Chatbot, Image Analysis) in a single interface
+
+Architecture Diagram
+
+Frontend (React + TypeScript + Tailwind), Backend (Flask + ML models), APIs, Database
+
+Technology Stack
+
+Frontend, Backend, ML Libraries, Tools (React, Flask, PyTorch/TensorFlow, Random Forest, CNN)
+
+Machine Learning Models
+
+Random Forest for symptoms, CNN for image analysis, NLP chatbot approach
+
+Implementation Details
+
+Key features (Tabbed UI, Dark Mode, Responsive Design, API endpoints)
+
+Results & Performance
+
+Accuracy of models, Response time, User feedback
+
+Screenshots / UI Preview
+
+Symptom checker, Chatbot, Image upload and result pages
+
+Testing & Validation
+
+Model testing, API testing, User acceptance testing
+
+Challenges Faced
+
+Data availability, Model accuracy, Integration issues
+
+Conclusion & Future Scope
+
+Summary of achievements, improvements planned (Transformer models, more datasets, clinical validation)
+
+Acknowledgements & References
+
+Guide, Faculty, Tools, Libraries, Data sources
+
+Formatting & Style Requirements:
+
+Professional theme with a medical color scheme (blue/green/white)
+
+Minimal text with bullet points
+
+Include diagrams (system architecture, model workflow)
+
+Include icons for tech stack (React, Flask, Python, ML)
+
+High readability for academic presentation
+
+Ensure each slide is visually balanced (text + visuals)
