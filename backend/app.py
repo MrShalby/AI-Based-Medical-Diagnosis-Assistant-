@@ -3,7 +3,6 @@ import requests
 from flask_cors import CORS
 from flask import Flask, request, jsonify
 from flask import Flask, request, jsonify, render_template_string
-
 from flask_cors import CORS
 import pickle
 import numpy as np
@@ -384,23 +383,19 @@ def health_check():
     })
 
 # Authentication endpoints
-@app.route('/auth/signup', methods=['POST'])
+@app.route("/auth/signup", methods=["POST"])
 def signup():
     data = request.get_json()
-    
-    if not data or not data.get('username') or not data.get('email') or not data.get('password'):
-        return jsonify({"error": "Missing required fields"}), 400
-        
-    user, error = register_user(
-        data['username'],
-        data['email'],
-        data['password']
-    )
-    
+    username = data.get("username")
+    email = data.get("email")
+    password = data.get("password")
+
+    user, error = register_user(username, email, password)
     if error:
         return jsonify({"error": error}), 400
-        
-    token = generate_token(user)
+
+    token = generate_token(user.id, user.email)
+    return jsonify({"token": token, "user": {"id": user.id, "username": user.username, "email": user.email}})
     
     return jsonify({
         "token": token,
@@ -423,7 +418,8 @@ def login():
     if not user:
         return jsonify({"error": "Invalid credentials"}), 401
         
-    token = generate_token(user)
+    token = generate_token(user.id, user.email)
+
     
     return jsonify({
         "token": token,
@@ -448,3 +444,5 @@ def get_current_user():
             "email": user.email
         }
     })
+if __name__ == "__main__":
+    app.run(debug=True)
