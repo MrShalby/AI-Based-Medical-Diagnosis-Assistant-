@@ -14,6 +14,7 @@ import Footer from "./components/Footer";
 import LoginPage from "./components/LoginPage";
 import SignupPage from "./components/SignupPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProfilePage from "./components/ProfilePage";
 
 const AppContent: React.FC = () => {
   const { login, signup, error, isLoading } = useAuth();
@@ -75,6 +76,16 @@ const AppContent: React.FC = () => {
             element={
               <ProtectedRoute>
                 <MainTabs />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Profile page */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
               </ProtectedRoute>
             }
           />

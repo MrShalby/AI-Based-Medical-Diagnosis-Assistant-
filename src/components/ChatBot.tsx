@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader, AlertCircle } from 'lucide-react';
+import { Send, Bot, User, Loader} from 'lucide-react';
 import { getChatResponse } from '../services/api';
 
 interface Message {
@@ -70,7 +70,7 @@ const ChatBot: React.FC = () => {
           timestamp: new Date(),
         }];
       });
-    } catch (err) {
+    } catch  {
       setError('Failed to get response. Please try again.');
       setMessages(prev => prev.filter(msg => msg.id !== 'typing'));
     } finally {
@@ -186,7 +186,7 @@ const ChatBot: React.FC = () => {
         {error && (
           <div className="px-6 pb-2">
             <div className="flex items-center space-x-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-red-500" />
+              <div className="h-4 w-4 text-red-500" />
               <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
             </div>
           </div>
@@ -222,7 +222,7 @@ const ChatBot: React.FC = () => {
       {/* Disclaimer */}
       <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
         <div className="flex items-start space-x-3">
-          <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+          <div className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
           <div>
             <h4 className="font-semibold text-yellow-800 dark:text-yellow-200">
               AI Chatbot Disclaimer

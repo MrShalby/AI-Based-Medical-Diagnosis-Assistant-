@@ -1,12 +1,69 @@
-import React from 'react';
-import { Heart, AlertTriangle, Info, ExternalLink } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Heart, AlertTriangle, Info, ExternalLink, Download } from 'lucide-react';
 import { DiagnosisResult } from '../types';
+import { saveDiagnosisReport } from '../services/reports';
+import { useAuth } from '../context/AuthContext';
 
 interface DiagnosisResultsProps {
   results: DiagnosisResult;
+  symptoms: string[];
 }
 
-const DiagnosisResults: React.FC<DiagnosisResultsProps> = ({ results }) => {
+const DiagnosisResults: React.FC<DiagnosisResultsProps> = ({ results, symptoms }) => {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    // Save the diagnosis report when the component mounts
+    const saveReport = async () => {
+      try {
+        await saveDiagnosisReport(results, symptoms);
+      } catch (error) {
+        console.error('Failed to save diagnosis report:', error);
+      }
+    };
+    saveReport();
+  }, [results, symptoms]);
+
+  const handleDownloadReport = () => {
+    // Create the report content
+    const reportContent = `
+Medical Diagnosis Report
+Date: ${new Date().toLocaleDateString()}
+Patient: ${user?.name}
+
+Symptoms:
+${symptoms.join('\n')}
+
+Primary Diagnosis:
+${results.predictions[0].disease}
+Confidence: ${(results.predictions[0].confidence).toFixed(2)}%
+Description: ${results.predictions[0].description}
+
+Additional Predictions:
+${results.predictions.slice(1).map(pred => 
+  `- ${pred.disease} (${pred.confidence.toFixed(2)}% confidence)\n  ${pred.description}`
+).join('\n\n')}
+
+Health Recommendations:
+${results.recommendations.map(rec => 
+  `${rec.type}:\n${rec.advice}`
+).join('\n\n')}
+
+Disclaimer:
+This AI diagnosis is for informational purposes only. Always consult with a qualified healthcare professional for proper medical advice, diagnosis, and treatment.
+    `;
+
+    // Create blob and download
+    const blob = new Blob([reportContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `medical-diagnosis-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 80) return 'text-green-600 dark:text-green-400';
     if (confidence >= 60) return 'text-yellow-600 dark:text-yellow-400';
@@ -39,11 +96,20 @@ const DiagnosisResults: React.FC<DiagnosisResultsProps> = ({ results }) => {
 
       {/* Diagnosis Results */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 transition-colors duration-300">
-        <div className="flex items-center space-x-2 mb-6">
-          <Heart className="h-6 w-6 text-red-500" />
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-            Diagnosis Results
-          </h3>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            <Heart className="h-6 w-6 text-red-500" />
+            <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+              Diagnosis Results
+            </h3>
+          </div>
+          <button
+            onClick={handleDownloadReport}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200"
+          >
+            <Download className="h-4 w-4" />
+            <span>Download Report</span>
+          </button>
         </div>
 
         <div className="space-y-4">

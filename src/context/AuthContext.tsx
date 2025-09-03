@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+interface UpdateProfileData {
+  name?: string;
+  oldPassword?: string;
+  newPassword?: string;
+}
+
 interface User {
   id: string;
   name: string;
@@ -15,6 +21,7 @@ interface AuthContextType {
   logout: () => void;
   error: string | null;
   clearError: () => void;
+  updateUserProfile: (data: UpdateProfileData) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,6 +42,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const updateUserProfile = async (data: UpdateProfileData) => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      const updatedUser = await response.json();
+      setUser(prevUser => ({
+        ...prevUser!,
+        name: updatedUser.name || prevUser!.name
+      }));
+
+      // Update stored user data
+      localStorage.setItem('userData', JSON.stringify({
+        ...user,
+        name: updatedUser.name || user!.name
+      }));
+    } catch (error) {
+      setError('Failed to update profile');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Check if user is logged in on app start
   useEffect(() => {
@@ -155,6 +198,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     error,
     clearError,
+    updateUserProfile
   };
 
   return (

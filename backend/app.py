@@ -2,19 +2,61 @@ import os
 import requests
 from flask_cors import CORS
 from flask import Flask, request, jsonify
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, g
 from flask_cors import CORS
 import pickle
 import numpy as np
 from PIL import Image
 
-from auth_simple import init_simple_auth, register_user, authenticate_user, generate_token, get_user_by_id, require_auth
+from auth_simple import (
+    init_simple_auth, register_user, authenticate_user, generate_token, 
+    get_user_by_id, require_auth, hash_password, verify_password, SessionLocal
+)
+from reports_routes import init_reports_routes
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}}, supports_credentials=True) # Enable CORS for all routes
 
-# Initialize simple authentication
+# Initialize simple authentication and reports routes
 init_simple_auth()
+app = init_reports_routes(app)
+
+@app.route('/api/user/profile', methods=['PUT'])
+@require_auth
+def update_profile():
+    try:
+        data = request.json
+        user = get_user_by_id(request.user_id)
+        
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
+        # Update name if provided
+        if 'name' in data:
+            user.username = data['name']
+            
+        # Update password if provided
+        if 'oldPassword' in data and 'newPassword' in data:
+            if not verify_password(data['oldPassword'], user.password_hash):
+                return jsonify({"error": "Current password is incorrect"}), 400
+            user.password_hash = hash_password(data['newPassword'])
+            
+        # Save changes
+        db = SessionLocal()
+        try:
+            db.merge(user)
+            db.commit()
+            return jsonify({
+                "name": user.username,
+                "email": user.email
+            })
+        except Exception as e:
+            db.rollback()
+            return jsonify({"error": str(e)}), 500
+        finally:
+            db.close()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Load the trained model and related data files
 
