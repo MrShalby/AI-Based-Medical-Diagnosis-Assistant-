@@ -458,7 +458,7 @@ def login():
     user = authenticate_user(data['email'], data['password'])
     
     if not user:
-        return jsonify({"error": "Invalid credentials"}), 401
+        return jsonify({"error": "Invalid credentials please Sign up"}), 401
         
     token = generate_token(user.id, user.email)
 

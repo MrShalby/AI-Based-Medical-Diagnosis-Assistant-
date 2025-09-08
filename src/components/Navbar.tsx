@@ -22,7 +22,7 @@ const Navbar: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">
-                AI Medical Diagnosis Assistant
+                MediScan AI
               </h1>
               <p className="text-blue-100 dark:text-gray-300 text-sm">
                 Intelligent Symptom Analysis System
