@@ -1,12 +1,66 @@
 import os
 import requests
-from flask_cors import CORS
+
 from flask import Flask, request, jsonify
 from flask import Flask, request, jsonify, render_template_string, g
 from flask_cors import CORS
 import pickle
 import numpy as np
 from PIL import Image
+from PIL import Image, UnidentifiedImageError
+import json
+from torchvision import transforms
+import torch
+import torch.nn as nn
+import torchvision.models as models
+import argparse, json, os, sys, glob
+from pathlib import Path
+
+# Define the chest X-ray classes
+CXR_CLASSES = [
+    'Atelectasis', 'Cardiomegaly', 'Effusion', 'Infiltration', 
+    'Mass', 'Nodule', 'Pneumonia', 'Pneumothorax', 'Consolidation', 
+    'Edema', 'Emphysema', 'Fibrosis', 'Pleural_Thickening', 'Hernia'
+]
+
+class ChestXRayModel(nn.Module):
+    def __init__(self, num_classes=14):
+        super(ChestXRayModel, self).__init__()
+        self.backbone = models.resnet50(weights=None)  # Using ResNet50 as that matches the state dict
+        in_features = self.backbone.fc.in_features
+        self.backbone.fc = nn.Linear(in_features, num_classes)
+
+    def forward(self, x):
+        return self.backbone(x)
+
+    
+
+MODEL_PATH = os.path.join("models", "cxr_model.pt")
+CLASS_NAMES_PATH = os.path.join("models", "cxr_class_names.json")
+
+# Set up the device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+if os.path.exists(MODEL_PATH):
+    NUM_CLASSES = len(CXR_CLASSES)
+    chest_xray_model = ChestXRayModel(num_classes=NUM_CLASSES)
+    state_dict = torch.load(MODEL_PATH, map_location=device)
+    chest_xray_model.load_state_dict(state_dict)
+    chest_xray_model.to(device)
+    chest_xray_model.eval()
+    print("Chest X-Ray model loaded successfully.")
+else:
+    chest_xray_model = None
+    print("Chest X-Ray model not found.")
+
+
+# Preprocessing (must match training!)
+cxr_transform = transforms.Compose([
+    transforms.Resize((320, 320)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+])
 
 from auth_simple import (
     init_simple_auth, register_user, authenticate_user, generate_token, 
@@ -352,54 +406,108 @@ def chat():
 def analyze_image():
     try:
         if 'image' not in request.files:
+            return jsonify({"error": "No image file provided."}), 400
+
+        image_file = request.files['image']
+        if image_file.filename == '':
+            return jsonify({"error": "No image file selected."}), 400
+
+        # Save uploaded file temporarily
+        save_path = os.path.join("uploads", image_file.filename)
+        os.makedirs("uploads", exist_ok=True)
+        image_file.save(save_path)
+
+        # Check if chest X-ray model is loaded
+        if chest_xray_model is None:
+            return jsonify({"error": "Chest X-ray model not loaded."}), 500
+
+        # Preprocess and predict
+        from PIL import Image
+        img = Image.open(save_path).convert("RGB")
+        img_tensor = cxr_transform(img).unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            outputs = chest_xray_model(img_tensor)
+            probs = torch.sigmoid(outputs).cpu().numpy()[0]
+
+        # Collect predictions above threshold
+        predictions = []
+        for idx, prob in enumerate(probs):
+            if prob >= 0.5:  # adjustable threshold
+                predictions.append({
+                    "condition": CXR_CLASSES[idx],
+                    "confidence": round(float(prob) * 100, 2)
+                })
+
+        # If nothing passes threshold, return top 3
+        if not predictions:
+            top_indices = probs.argsort()[-3:][::-1]
+            for idx in top_indices:
+                predictions.append({
+                    "condition": CXR_CLASSES[idx],
+                    "confidence": round(float(probs[idx]) * 100, 2)
+                })
+
+        return jsonify({
+            "predictions": predictions,
+            "recommendations": [
+                "Consult with a qualified radiologist for interpretation",
+                "Consider follow-up imaging if symptoms persist",
+                "Discuss results with your healthcare provider"
+            ]
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"Image analysis failed: {str(e)}"}), 500
+
+    try:
+        if 'image' not in request.files:
             return jsonify({'error': 'No image file provided.'}), 400
 
         image_file = request.files['image']
         if image_file.filename == '':
             return jsonify({'error': 'No image file selected.'}), 400
 
-        # Validate image file can be opened
+        # Save uploaded file temporarily
+        save_path = os.path.join("uploads", image_file.filename)
+        os.makedirs("uploads", exist_ok=True)
+        image_file.save(save_path)
+
+        # Process image with the model
         try:
-            image = Image.open(image_file.stream)
-            image.verify()
-        except Exception:
-            return jsonify({'error': 'Invalid image file.'}), 400
+            img = Image.open(save_path).convert("RGB")
+            img_tensor = cxr_transform(img).unsqueeze(0).to(device)
 
-        filename = image_file.filename.lower()
+            with torch.no_grad():
+                outputs = chest_xray_model(img_tensor)
+                probs = torch.sigmoid(outputs).cpu().numpy()[0]
 
-        # Filename-based mock predictions for demo
-        if 'pneumonia' in filename or 'lung' in filename:
-            primary_condition = IMAGE_CONDITIONS['pneumonia']
-            confidence = 87.0
-        elif 'fracture' in filename or 'break' in filename:
-            primary_condition = IMAGE_CONDITIONS['fracture']
-            confidence = 92.0
-        elif 'tumor' in filename or 'mass' in filename:
-            primary_condition = IMAGE_CONDITIONS['tumor']
-            confidence = 78.0
-        else:
-            primary_condition = IMAGE_CONDITIONS['normal']
-            confidence = 85.0
+            # Collect predictions above threshold
+            predictions = []
+            for idx, prob in enumerate(probs):
+                if prob >= 0.5:  # adjustable threshold
+                    predictions.append({
+                        "condition": CXR_CLASSES[idx],
+                        "confidence": round(float(prob) * 100, 2),
+                        "description": f"Detected {CXR_CLASSES[idx]} with high confidence."
+                    })
 
-        predictions = [
-            {
-                'condition': primary_condition['name'],
-                'confidence': confidence,
-                'description': primary_condition['description']
-            },
-            {
-                'condition': 'Normal',
-                'confidence': max(20, 100 - confidence - 10),
-                'description': 'No significant abnormalities detected.'
-            },
-            {
-                'condition': 'Inflammation',
-                'confidence': max(15, 100 - confidence - 25),
-                'description': 'Signs of inflammatory response in tissue.'
-            }
-        ]
-
-        # Sort predictions by confidence descending
+            # If nothing passes threshold, return top 3
+            if not predictions:
+                top_indices = probs.argsort()[-3:][::-1]
+                for idx in top_indices:
+                    predictions.append({
+                        "condition": CXR_CLASSES[idx],
+                        "confidence": round(float(probs[idx]) * 100, 2),
+                        "description": f"Possible {CXR_CLASSES[idx]} detected."
+                    })
+        except Exception as e:
+            return jsonify({'error': f'Image processing failed: {str(e)}'}), 500
+        finally:
+            # Clean up temporary file
+            if os.path.exists(save_path):
+                os.remove(save_path)
+        # Sort predictions by confidence
         predictions = sorted(predictions, key=lambda x: x['confidence'], reverse=True)
 
         recommendations = [
@@ -411,7 +519,7 @@ def analyze_image():
         return jsonify({
             'predictions': predictions[:3],
             'recommendations': recommendations,
-            'processingTime': 3500  # in milliseconds (mock)
+            'processingTime': 3500  # in milliseconds
         })
 
     except Exception as e:
